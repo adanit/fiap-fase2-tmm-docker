@@ -1,0 +1,131 @@
+services:
+  db-auth-service:
+    container_name: auth-service-db
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_DATABASE}
+    volumes:
+      - ./auth-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata-auth-service-db:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  
+  targeting-db:
+    container_name: targeting-db
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${TARGETING_DB_USERNAME}
+      - POSTGRES_PASSWORD=${TARGETING_DB_PASSWORD}
+      - POSTGRES_DB=${TARGETING_DB_DATABASE}
+    volumes:
+      - ./targeting-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata-targeting-db:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+  
+  flag-service-db:
+    container_name: flag-service-db
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=${FLAG_DB_USERNAME}
+      - POSTGRES_PASSWORD=${FLAG_DB_PASSWORD}
+      - POSTGRES_DB=${FLAG_DB_DATABASE}
+    volumes:
+      - ./flag-service/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata-flag-service-db:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+
+  redis:
+    container_name: redis-evaluation-service 
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+
+  
+  auth-service:
+    container_name: auth-service
+    build: ./auth-service
+    restart: always
+    environment:
+      - DATABASE_URL=postgres://${DB_USERNAME}:${DB_PASSWORD}@db-auth-service:5432/${DB_DATABASE}
+      - PORT=8001
+      - MASTER_KEY=${MASTER_KEY}
+    ports:
+      - "8001:8001"
+    depends_on:
+      - db-auth-service
+
+  targeting-service:
+    container_name: targeting-service
+    build: ./targeting-service
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${TARGETING_DB_USERNAME}:${TARGETING_DB_PASSWORD}@targeting-db:5432/${TARGETING_DB_DATABASE}
+      - PORT=8003
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    ports:
+      - "8003:8003"
+    depends_on:
+      - targeting-db
+      - auth-service
+  
+  flag-service:
+    container_name: flag-service
+    build: ./flag-service
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://${FLAG_DB_USERNAME}:${FLAG_DB_PASSWORD}@flag-service-db:5432/${FLAG_DB_DATABASE}
+      - PORT=8002
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    ports:
+      - "8002:8002"
+    depends_on:
+      - flag-service-db
+      - auth-service
+
+  analytics-service:
+    container_name: analytics-service
+    build: ./analytics-service
+    restart: always
+    environment:
+      - PORT=8005
+      - AUTH_SERVICE_URL=${AUTH_SERVICE_URL}
+    ports:
+      - "8005:8005"
+    depends_on:
+      - auth-service
+      - targeting-service
+      - flag-service
+  
+  evaluation-service:
+    container_name: evaluation-service
+    build: ./evaluation-service
+    restart: always
+    environment:
+      - PORT=8004
+      - REDIS_URL=${REDIS_URL}
+      - FLAG_SERVICE_URL=${FLAG_SERVICE_URL}
+      - TARGETING_SERVICE_URL=${TARGETING_SERVICE_URL}
+      - SERVICE_API_KEY=${SERVICE_API_KEY}
+      - AWS_SQS_URL=${AWS_SQS_URL}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    ports:
+      - "8004:8004"
+    depends_on:
+      - redis
+      - flag-service
+      - targeting-service
+
+volumes:
+  pgdata-auth-service-db:
+  pgdata-targeting-db:
+  pgdata-flag-service-db:
