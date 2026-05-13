@@ -129,3 +129,4 @@ volumes:
   pgdata-auth-service-db:
   pgdata-targeting-db:
   pgdata-flag-service-db:
+  pgdata-targeting-service-db:
