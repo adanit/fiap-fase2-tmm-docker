@@ -1,4 +1,4 @@
-# ToggleMaster — Guia de Execução (How To)
+# ToggleMaster — Guia de Execução
 
 ToggleMaster é uma plataforma de **feature flags** construída como uma arquitetura de microsserviços. Ela permite criar, gerenciar e avaliar flags de funcionalidade com regras de segmentação sofisticadas (ex: porcentagem de usuários, país, ID), além de registrar eventos de analytics via AWS.
 
